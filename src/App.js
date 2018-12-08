@@ -11,6 +11,8 @@ import Snackbar from '@material-ui/core/Snackbar';
 import IconButton from '@material-ui/core/IconButton';
 import CloseIcon from '@material-ui/icons/Close';
 import config from './config.json';
+import { loadReCaptcha } from 'react-recaptcha-google'
+import { ReCaptcha } from 'react-recaptcha-google'
 
 const styles = (theme) => ({
 	card: {
@@ -52,13 +54,45 @@ class App extends React.Component {
 			uploaded: false,
 			downloadurl: '',
 			error: '',
-			errorSnack: false
+			errorSnack: false,
+			captcha:false
 		};
 
 		this.handleChange = this.handleChange.bind(this);
 		this.handleSubmit = this.handleSubmit.bind(this);
+		this.onLoadRecaptcha = this.onLoadRecaptcha.bind(this);
+		this.verifyCallback = this.verifyCallback.bind(this);
 	}
+	componentDidMount() {
+		loadReCaptcha();
 
+		if (this.captchaDemo) {
+			this.captchaDemo.reset();
+
+		}
+	  }
+	onLoadRecaptcha() {
+		if (this.captchaDemo) {
+			this.captchaDemo.reset();
+		}
+	}
+	verifyCallback(recaptchaToken) {
+
+			fetch(config['verifyUrl']+"?key=6LfyjH8UAAAAAMO5TsIIuRGmnJqQXHMmtFihHbfT&token="+recaptchaToken,{
+			method: 'GET',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/json'
+			},	
+			}).then((res)=>{
+				return res.json();
+			}).then((json)=>{
+				if (json["success"]){
+					this.setState({captcha: true})
+				}
+			})
+		console.log(recaptchaToken, "<= your recaptcha token")
+	  }
 	handleChange(event) {
 		this.setState({ [event.target.id]: event.target.value });
 	}
@@ -80,10 +114,11 @@ class App extends React.Component {
 					this.setState({ errorSnack: true });
 					console.log(this.state);
 				} else {
-          this.setState({ errorSnack: false });
+					this.setState({ errorSnack: false });
 					this.setState({ uploaded: true });
 					this.setState({ downloadurl: json['url'] });
 				}
+				this.captchaDemo.reset();
 			});
 		event.preventDefault();
 	}
@@ -103,9 +138,9 @@ class App extends React.Component {
 	};
 	render() {
 		const { classes } = this.props;
-		const { first, last, email, uploaded, error, errorSnack } = this.state;
+		const { first, last, email, uploaded, error, errorSnack, captcha } = this.state;
 
-		const isEnabled = first.length > 0 && last.length > 0 && email.length > 0;
+		const isEnabled = first.length > 0 && last.length > 0 && email.length > 0 && captcha;
 		return (
 			<React.Fragment>
 				<Grid container className={classes.gridContainer} justify="center" spacing={0}>
@@ -145,7 +180,14 @@ class App extends React.Component {
 									margin="normal"
 									variant="outlined"
 								/>
-
+					<ReCaptcha
+            ref={(el) => {this.captchaDemo = el;}}
+            size="compact"
+            render="explicit"
+            sitekey="6LfyjH8UAAAAAI6C67KCpGt8MqlLwXbMQTifhdu8"
+            onloadCallback={this.onLoadRecaptcha}
+            verifyCallback={this.verifyCallback}
+        />
 								<Button
 									disabled={!isEnabled}
 									variant="contained"
@@ -159,6 +201,7 @@ class App extends React.Component {
 							</Grid>
 						</form>
 					</Card>
+
 					<Snackbar
 						open={uploaded}
 						ContentProps={{
